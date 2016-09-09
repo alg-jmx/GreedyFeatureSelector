@@ -1,0 +1,44 @@
+---
+title: "greedy_algorithm_feature_selection"
+author: "JuMingXing"
+date: "2016年9月8日"
+output: html_document
+---
+
+```{r}
+require(magrittr)
+require(dplyr)
+# Greedy Algorithm
+greedyAlgorithm = function(dataSet) {
+  features = data.frame(name = colnames(dataSet)) %>%
+    dplyr::filter(name != "label") 
+  features = as.vector(features$name)  
+  featureSelect = c("label")
+  scoreBefore = data.frame()
+  while(nrow(scoreBefore)<2||scoreBefore[length(scoreBefore),2]<
+        scoreBefore[length(scoreBefore) - 1,2]){
+    score = data.frame()
+    for(feature in features){
+      if(length(intersect(feature,featureSelect)) == 0){
+        trainData = dataSet[,append(featureSelect,feature)]
+        model = glm(label~.,family = "binomial",data = trainData,epsilon = 1e-10)
+        prediction = predict(model,trainData)
+        aucValue = auc(trainData$label,prediction)
+        score = rbind(score,data.frame(feature = feature,aucValue = aucValue))
+      }
+    }
+    featureSelect = unique(append(featureSelect,as.character(score[which.max(score$aucValue),1])))
+    scoreBefore = rbind(scoreBefore,score[which.max(score$aucValue),])
+  }
+  featureSelect = head(featureSelect,length(featureSelect)-1)
+  return(featureSelect[-1])
+}
+```
+
+```{r}
+# data = read.csv("/data/workspace/Rworkspace/test_data.csv",encoding = "UTF-8",header = T,as.is = T)
+# feature = greedyAlgorithm(dataSet = data)
+```
+
+
+
