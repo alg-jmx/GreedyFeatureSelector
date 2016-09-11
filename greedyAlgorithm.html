@@ -78,24 +78,8 @@ img {
 </ol>
 <pre class="r"><code>options(warn = -1)
 require(magrittr)</code></pre>
-<pre><code>## Loading required package: magrittr</code></pre>
 <pre class="r"><code>require(dplyr)</code></pre>
-<pre><code>## Loading required package: dplyr
-## 
-## Attaching package: 'dplyr'
-## 
-## The following objects are masked from 'package:stats':
-## 
-##     filter, lag
-## 
-## The following objects are masked from 'package:base':
-## 
-##     intersect, setdiff, setequal, union</code></pre>
 <pre class="r"><code>require(glmnet)</code></pre>
-<pre><code>## Loading required package: glmnet
-## Loading required package: Matrix
-## Loading required package: foreach
-## Loaded glmnet 2.0-5</code></pre>
 <pre class="r"><code># Greedy Algorithm
 greedyAlgorithm = function(dataSet) {
   features = data.frame(name = colnames(dataSet)) %&gt;%
