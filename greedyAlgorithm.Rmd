@@ -4,10 +4,24 @@ author: "JuMingXing"
 date: "2016年9月8日"
 output: html_document
 ---
+贪心算法（又称贪婪算法）是指，在对问题求解时，总是做出在当前看来是最好的选择。也就是说，不从整体最优上加以考虑，它所做出的是在某种意义上的局部最优解。贪心算法不是对所有问题都能得到整体最优解，关键是贪心策略的选择，选择的贪心策略必须具备无后效性，即某个状态以前的过程不会影响以后的状态，只与当前状态有关。
 
+算法设计：
+
+  1. 初始化问题的目标值
+  
+  2. while（实现优化目标的约束条件）{
+  
+      利用筛选策略，求出解空间的一个可行解
+      
+    }
+    
+  3. 将所有可行解组合成目标解空间。
 ```{r}
+options(warn = -1)
 require(magrittr)
 require(dplyr)
+require(glmnet)
 # Greedy Algorithm
 greedyAlgorithm = function(dataSet) {
   features = data.frame(name = colnames(dataSet)) %>%
@@ -15,8 +29,8 @@ greedyAlgorithm = function(dataSet) {
   features = as.vector(features$name)  
   featureSelect = c("label")
   scoreBefore = data.frame()
-  while(nrow(scoreBefore)<2||scoreBefore[length(scoreBefore),2]<
-        scoreBefore[length(scoreBefore) - 1,2]){
+  while((nrow(scoreBefore)<2||scoreBefore[length(scoreBefore),2]>
+        scoreBefore[length(scoreBefore) - 1,2])&&nrow(scoreBefore)<length(features)){
     score = data.frame()
     for(feature in features){
       if(length(intersect(feature,featureSelect)) == 0){
@@ -36,8 +50,12 @@ greedyAlgorithm = function(dataSet) {
 ```
 
 ```{r}
-# data = read.csv("/data/workspace/Rworkspace/test_data.csv",encoding = "UTF-8",header = T,as.is = T)
-# feature = greedyAlgorithm(dataSet = data)
+dataSet = data.frame(matrix(rnorm(10000),100,100))
+colName = paste("a",1:100,sep = "")
+colnames(dataSet) = colName
+dataSet %<>%
+  dplyr::mutate(label = c(rep(1,46),rep(0,54)))
+system.time(greedyAlgorithm(dataSet = dataSet))
 ```
 
 
