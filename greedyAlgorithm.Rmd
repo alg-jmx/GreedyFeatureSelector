@@ -1,5 +1,5 @@
 ---
-title: "greedy_algorithm_feature_selection"
+title: "greedyAlgorithmFeatureSelection"
 author: "JuMingXing"
 date: "2016年9月8日"
 output: html_document
@@ -42,20 +42,75 @@ greedyAlgorithm = function(dataSet) {
       }
     }
     featureSelect = unique(append(featureSelect,as.character(score[which.max(score$aucValue),1])))
+    print(length(featureSelect))
     scoreBefore = rbind(scoreBefore,score[which.max(score$aucValue),])
   }
   featureSelect = head(featureSelect,length(featureSelect)-1)
   return(featureSelect[-1])
 }
 ```
+KS值表征了模型将正例和负例区分开来的能力。值越大，模型的预测准确性越好。通常情况下，KS>0.3即可认为模型有比较好的预测准确性。
+
+KS值计算方法：
+
+将所有样本根据预测得分从低到高排序均分成N组，分别计算这N组的实际好样本数、坏样本数、累积好样本数、累积坏样本数、累积好样本数占比、累积坏样本数占比，差值。其中，实际好坏样本数分别为该组内的好坏样本数，累积好坏样本数为该组累积的好坏样本数，累积好坏样本数占比为累积好坏样本数占总好坏样本数的比值，差值为累积坏样本数占比减去累计好样本数占比。KS指标为差值绝对值的最大值。
+```{r}
+# ksValue
+ksValue = function(prediction,n){
+  dataResult = arrange(desc(prediction))
+  a = c()
+  b = c()
+  c = c()
+  a[1] = 0
+  b[1] = 0
+  c[1] = 0
+  if(nrow(dataResult)%%n==0){
+    cut = nrow(dataResult)/n
+    for (i in 2:(n+1)) {
+      a[i] = sum(dataResult[(cut*(i-2)+1):(cut*(i-1)),1])
+      b[i] = nrow(dataResult[(cut*(i-2)+1):(cut*(i-1)),])-a[i]
+    }
+  }else{
+    cut = round(nrow(dataResult)/n)
+    for (i in 2:n) {
+      a[i] = sum(dataResult[(cut*(i-2)+1):(cut*(i-1)),1])
+      b[i] = nrow(dataResult[(cut*(i-2)+1):(cut*(i-1)),])-a[i]
+    }
+    a[n+1] = sum(dataResult[(cut*(n-2)+1):(cut*(n-1)),1])
+    b[n+1] = nrow(dataResult[(cut*(n-2)+1):(cut*(n-1)),])-a[n+1]
+  }
+  c = abs(cumsum(a)/sum(a)-cumsum(b)/sum(b))
+  return(c)
+}
+```
 
 ```{r}
-dataSet = data.frame(matrix(rnorm(10000),100,100))
-colName = paste("a",1:100,sep = "")
-colnames(dataSet) = colName
-dataSet %<>%
-  dplyr::mutate(label = c(rep(1,46),rep(0,54)))
-system.time(greedyAlgorithm(dataSet = dataSet))
+# dataSet = data.frame(matrix(rnorm(10000),100,100))
+# colName = paste("a",1:100,sep = "")
+# colnames(dataSet) = colName
+# dataSet %<>%
+#   dplyr::mutate(label = c(rep(1,46),rep(0,54)))
+data = read.csv("/data/workspace/Rworkspace/model_risk_python/data_train_model.csv",encoding = "UTF-8")
+data %<>%
+  mutate(label = ifelse(overDueDays>30,1,0))
+data = data[,-c(1,2)]
+data = data.frame(apply(data, 2, function(x) ifelse(is.na(x),median(x,na.rm = T),x)))
+feature = greedyAlgorithm(dataSet = data)
+set.seed(521)
+ind = base::sample(2,nrow(data),replace=T,prob=c(0.7,0.3))
+trainData = data[ind==1,]
+testData = data[ind==2,]
+model = cv.glmnet(as.matrix(trainData[,feature]),trainData[,"label"],
+                    family = "binomial",type.measure = "auc",alpha = 0,
+                    lambda.min.ratio = 0.0001)
+prediction = predict(model,as.matrix(testData[,feature]),s="lambda.min",type="response")
+# compute ksValue
+ksValue = ksValue(prediction,10)
+par(mfrow = c(1,2))
+plot(density(ksValue),type = 'l',main = "ksValue Plot",xlab = "cutPoint",ylab = "density_ks")
+text(.2,1.5,paste("ksValue = ",max(ksValue)))
+roc(testData$label, as.vector(prediction), auc = T,plot = T,print.auc=T)
+par(mfrow=c(1,1))
 ```
 
 
