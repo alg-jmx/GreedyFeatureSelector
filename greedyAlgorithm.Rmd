@@ -4,7 +4,9 @@ author: "JuMingXing"
 date: "2016年9月8日"
 output: html_document
 ---
-贪心算法（又称贪婪算法）是指，在对问题求解时，总是做出在当前看来是最好的选择。也就是说，不从整体最优上加以考虑，它所做出的是在某种意义上的局部最优解。贪心算法不是对所有问题都能得到整体最优解，关键是贪心策略的选择，选择的贪心策略必须具备无后效性，即某个状态以前的过程不会影响以后的状态，只与当前状态有关。
+贪心算法（又称贪婪算法）是指，在对问题求解时，总是做出在当前看来是最好的选择。也就是说，不从整体最优上加以考虑，
+它所做出的是在某种意义上的局部最优解。贪心算法不是对所有问题都能得到整体最优解，关键是贪心策略的选择，选择的贪心
+策略必须具备无后效性，即某个状态以前的过程不会影响以后的状态，只与当前状态有关。
 
 算法设计：
 
@@ -17,18 +19,25 @@ output: html_document
     }
     
   3. 将所有可行解组合成目标解空间。
-```{r}
+```{r greedy_algorithm, echo=TRUE, message=FALSE, warning=FALSE}
 options(warn = -1)
 require(magrittr)
 require(dplyr)
 require(glmnet)
 # Greedy Algorithm
-greedyAlgorithm = function(dataSet) {
+GreedyAlgorithm = function(dataSet) {
+  # 基于逻辑回归,以AUC作为评价指标,采用贪心算法进行特征筛选
+  # 
+  # Args:
+  #   dataSet: A dataframe that contains a feature "label"
+  # 
+  # Returns:
+  #   A vector of selected features
   features = data.frame(name = colnames(dataSet)) %>%
-    dplyr::filter(name != "label") 
-  features = as.vector(features$name)  
-  featureSelect = c("label")
-  scoreBefore = data.frame()
+    dplyr::filter(name != "label")  # select all features of the dataSet except "label"
+  features = as.vector(features$name)    
+  featureSelect = c("label")  # init the feature vector to be selected
+  scoreBefore = data.frame()  # init the storage whice stores the (feature,aucScore) tuple from the end of each iteration 
   while((nrow(scoreBefore)<2||scoreBefore[length(scoreBefore),2]>
         scoreBefore[length(scoreBefore) - 1,2])&&nrow(scoreBefore)<length(features)){
     score = data.frame()
@@ -42,64 +51,75 @@ greedyAlgorithm = function(dataSet) {
       }
     }
     featureSelect = unique(append(featureSelect,as.character(score[which.max(score$aucValue),1])))
-    print(length(featureSelect))
     scoreBefore = rbind(scoreBefore,score[which.max(score$aucValue),])
   }
-  featureSelect = head(featureSelect,length(featureSelect)-1)
-  return(featureSelect[-1])
+  featureSelect = head(featureSelect,length(featureSelect)-1)  # delete the last feature that can't fit the iteration condition 
+  return(featureSelect[-1])  # reture the selected features except "label"
 }
 ```
 KS值表征了模型将正例和负例区分开来的能力。值越大，模型的预测准确性越好。通常情况下，KS>0.3即可认为模型有比较好的预测准确性。
 
 KS值计算方法：
 
-将所有样本根据预测得分从低到高排序均分成N组，分别计算这N组的实际好样本数、坏样本数、累积好样本数、累积坏样本数、累积好样本数占比、累积坏样本数占比，差值。其中，实际好坏样本数分别为该组内的好坏样本数，累积好坏样本数为该组累积的好坏样本数，累积好坏样本数占比为累积好坏样本数占总好坏样本数的比值，差值为累积坏样本数占比减去累计好样本数占比。KS指标为差值绝对值的最大值。
-```{r}
+将所有样本根据预测得分从低到高排序均分成N组，分别计算这N组的实际好样本数、坏样本数、累积好样本数、累积坏样本数、累积好样本数占比、
+累积坏样本数占比，差值。其中，实际好坏样本数分别为该组内的好坏样本数，累积好坏样本数为该组累积的好坏样本数，累积好坏样本数占比为
+累积好坏样本数占总好坏样本数的比值，差值为累积坏样本数占比减去累计好样本数占比。KS指标为差值绝对值的最大值。
+```{r ks_value, echo=TRUE, message=FALSE, warning=FALSE}
 # ksValue
-ksValue = function(prediction,n){
-  dataResult = arrange(desc(prediction))
+KsValue = function(prediction,n){
+  # Compute the ks value of a model
+  # 
+  # Args:
+  #   prediction: A vector that the prediction of a model
+  #   n: The group number 
+  # 
+  # Returns:
+  #   A vector that the difference value between the rate cumulative bad sample and the rate of cumulative good sample 
+  dataResult = sort(prediction,decreasing = T)
   a = c()
   b = c()
   c = c()
   a[1] = 0
   b[1] = 0
   c[1] = 0
-  if(nrow(dataResult)%%n==0){
-    cut = nrow(dataResult)/n
+  if(length(dataResult)%%n==0){
+    cut = length(dataResult)/n
     for (i in 2:(n+1)) {
-      a[i] = sum(dataResult[(cut*(i-2)+1):(cut*(i-1)),1])
-      b[i] = nrow(dataResult[(cut*(i-2)+1):(cut*(i-1)),])-a[i]
+      a[i] = sum(dataResult[(cut*(i-2)+1):(cut*(i-1))])
+      b[i] = length(dataResult[(cut*(i-2)+1):(cut*(i-1))])-a[i]
     }
   }else{
-    cut = round(nrow(dataResult)/n)
+    cut = round(length(dataResult)/n)
     for (i in 2:n) {
-      a[i] = sum(dataResult[(cut*(i-2)+1):(cut*(i-1)),1])
-      b[i] = nrow(dataResult[(cut*(i-2)+1):(cut*(i-1)),])-a[i]
+      a[i] = sum(dataResult[(cut*(i-2)+1):(cut*(i-1))])
+      b[i] = length(dataResult[(cut*(i-2)+1):(cut*(i-1))])-a[i]
     }
-    a[n+1] = sum(dataResult[(cut*(n-2)+1):(cut*(n-1)),1])
-    b[n+1] = nrow(dataResult[(cut*(n-2)+1):(cut*(n-1)),])-a[n+1]
+    a[n+1] = sum(dataResult[(cut*(n-2)+1):(cut*(n-1))])
+    b[n+1] = length(dataResult[(cut*(n-2)+1):(cut*(n-1))])-a[n+1]
   }
   c = abs(cumsum(a)/sum(a)-cumsum(b)/sum(b))
   return(c)
 }
 ```
 
-```{r}
+```{r main_run, echo=TRUE, message=FALSE, warning=FALSE}
 require(caret)
-data = read.csv("/data/workspace/Rworkspace/model_risk_python/data_train_model.csv",encoding = "UTF-8")
+require(pROC)
+data = read.csv("/data/workspace/Rworkspace/data_test.csv",encoding = "UTF-8")
 data %<>%
-  mutate(label = ifelse(overDueDays>30,1,0))
-data = data[,-c(1,2)]
+  mutate(label = ifelse(target>30,1,0))
+data = data[,-1]
 data = data.frame(apply(data, 2, function(x) ifelse(is.na(x),median(x,na.rm = T),x)))
 # 剔除近似常量的变量
-feature1 = nearZeroVar(data)
-data = data[,feature1]
+# feature1 = nearZeroVar(data)
+# data = data[,-feature1]
 # 剔除相关度过高的自变量
-dataCor = cor(data)
-highcor = findCorrelation(dataCor,0.8)
-data = data[,-highcor]
+# dataCor = cor(data)
+# highcor = findCorrelation(dataCor,0.8)
+# data = data[,-highcor]
 # 利用贪心算法进行特征选择
-feature = greedyAlgorithm(dataSet = data)
+# feature = GreedyAlgorithm(dataSet = data)
+load("/data/workspace/Rworkspace/featureSelect.RData")  # 数据量较大,生成html过程中该算法比较耗时,所以直接加载测试时已经选取的特征
 set.seed(521)
 ind = base::sample(2,nrow(data),replace=T,prob=c(0.7,0.3))
 trainData = data[ind==1,]
@@ -109,10 +129,11 @@ model = cv.glmnet(as.matrix(trainData[,feature]),trainData[,"label"],
                     lambda.min.ratio = 0.0001)
 prediction = predict(model,as.matrix(testData[,feature]),s="lambda.min",type="response")
 # compute ksValue
-ksValue = ksValue(prediction,10)
-par(mfrow = c(1,2))
+ksValue = KsValue(prediction,10)
+par(mfrow = c(2,1))
 plot(density(ksValue),type = 'l',main = "ksValue Plot",xlab = "cutPoint",ylab = "density_ks")
-text(.2,1.5,paste("ksValue = ",max(ksValue)))
+ks_value = max(ksValue)
+text(.2,1.0,paste("ksValue = ",ks_value))
 roc(testData$label, as.vector(prediction), auc = T,plot = T,print.auc=T)
 par(mfrow=c(1,1))
 ```
