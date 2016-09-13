@@ -111,15 +111,14 @@ data %<>%
 data = data[,-1]
 data = data.frame(apply(data, 2, function(x) ifelse(is.na(x),median(x,na.rm = T),x)))
 # 剔除近似常量的变量
-# feature1 = nearZeroVar(data)
-# data = data[,-feature1]
+feature1 = nearZeroVar(data)
+data = data[,-feature1]
 # 剔除相关度过高的自变量
-# dataCor = cor(data)
-# highcor = findCorrelation(dataCor,0.8)
-# data = data[,-highcor]
+dataCor = cor(data)
+highcor = findCorrelation(dataCor,0.8)
+data = data[,-highcor]
 # 利用贪心算法进行特征选择
-# feature = GreedyAlgorithm(dataSet = data)
-load("/data/workspace/Rworkspace/featureSelect.RData")  # 数据量较大,生成html过程中该算法比较耗时,所以直接加载测试时已经选取的特征
+feature = GreedyAlgorithm(dataSet = data)
 set.seed(521)
 ind = base::sample(2,nrow(data),replace=T,prob=c(0.7,0.3))
 trainData = data[ind==1,]
