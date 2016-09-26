@@ -39,7 +39,7 @@ GreedyAlgorithm = function(dataSet) {
   featureSelect = c("label")  # init the feature vector to be selected
   scoreBefore = data.frame()  # init the storage whice stores the (feature,aucScore) tuple from the end of each iteration 
   while((nrow(scoreBefore)<2||scoreBefore[length(scoreBefore),2]>
-        scoreBefore[length(scoreBefore) - 1,2])&&nrow(scoreBefore)<length(features)){
+        scoreBefore[length(scoreBefore) - 1,2])&&nrow(scoreBefore)<length(features)-150){
     score = data.frame()
     for(feature in features){
       if(length(intersect(feature,featureSelect)) == 0){
@@ -51,6 +51,7 @@ GreedyAlgorithm = function(dataSet) {
       }
     }
     featureSelect = unique(append(featureSelect,as.character(score[which.max(score$aucValue),1])))
+    print(length(featureSelect))
     scoreBefore = rbind(scoreBefore,score[which.max(score$aucValue),])
   }
   featureSelect = head(featureSelect,length(featureSelect)-1)  # delete the last feature that can't fit the iteration condition 
@@ -66,16 +67,17 @@ KS值计算方法：
 累积好坏样本数占总好坏样本数的比值，差值为累积坏样本数占比减去累计好样本数占比。KS指标为差值绝对值的最大值。
 ```{r ks_value, echo=TRUE, message=FALSE, warning=FALSE}
 # ksValue
-KsValue = function(prediction,n){
+require(dplyr)
+KsValue = function(data,n){
   # Compute the ks value of a model
   # 
   # Args:
-  #   prediction: A vector that the prediction of a model
+  #   data: A dataFrame[prediction,label] that the prediction of a model and real label
   #   n: The group number 
   # 
   # Returns:
   #   A vector that the difference value between the rate cumulative bad sample and the rate of cumulative good sample 
-  dataResult = sort(prediction,decreasing = T)
+  dataResult = dplyr::arrange(data,desc(prediction))$label
   a = c()
   b = c()
   c = c()
@@ -117,12 +119,12 @@ data = data[,-feature1]
 dataCor = cor(data)
 highcor = findCorrelation(dataCor,0.8)
 data = data[,-highcor]
-# 利用贪心算法进行特征选择
-feature = GreedyAlgorithm(dataSet = data)
 set.seed(521)
 ind = base::sample(2,nrow(data),replace=T,prob=c(0.7,0.3))
 trainData = data[ind==1,]
 testData = data[ind==2,]
+# 利用贪心算法进行特征选择
+feature = GreedyAlgorithm(dataSet = trainData)
 model = cv.glmnet(as.matrix(trainData[,feature]),trainData[,"label"],
                     family = "binomial",type.measure = "auc",alpha = 0,
                     lambda.min.ratio = 0.0001)
